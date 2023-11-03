@@ -13,7 +13,7 @@ struct ContentView: View {
             Form(content: {
                 Section("Background Color") {
                     ColorConfigurationRowView(
-                        colors: model.background.colors,
+                        rows: model.background.rows,
                         selectedColor: $model.selectedColor
                     )
                 }
@@ -36,7 +36,7 @@ struct TopView: View {
 }
 
 struct ColorConfigurationRowView: View {
-    let colors: [ColorModel]
+    let rows: [SampleModel.BackgroundRowModel]
     @Binding public var selectedColor: ColorModel?
     
     var body: some View {
@@ -44,12 +44,11 @@ struct ColorConfigurationRowView: View {
             LazyHGrid(rows: [GridItem(.fixed(40))],
                       alignment: .center,
                       spacing: 10) {
-                ForEach(colors) { color in
-                    ColorView(model: color,
-                              isSelected: color == selectedColor)
-                    .onTapGesture {
-                        selectedColor = color
-                    }
+                ForEach(rows, id: \.color.id) { row in
+                    ColorView(model: row)
+                        .onTapGesture {
+                            selectedColor = row.color
+                        }
                 }
             }
         }
@@ -57,16 +56,15 @@ struct ColorConfigurationRowView: View {
 }
 
 struct ColorView: View {
-    let model: ColorModel
-    var isSelected: Bool
-
+    let model: SampleModel.BackgroundRowModel
+    
     var body: some View {
         Circle()
-            .fill(model.color)
+            .fill(model.color.swiftUIcolor)
             .frame(width: 50, height: 50)
             .overlay(
                 Circle().stroke(Color.green,
-                                lineWidth: isSelected ? 3 : 0)
+                                lineWidth: model.isSelected ? 3 : 0)
                 .padding(-5)
             )
     }
@@ -77,44 +75,53 @@ struct BackgroundView: View {
     
     var body: some View {
         if background.isColorType {
-            LinearGradient(colors: colors,
+            LinearGradient(colors: background.colors,
                            startPoint: .leading,
                            endPoint: .trailing)
         }else {
             Text("Picture")
         }
     }
-    
-    private var colors: [Color] {
-        background.colors.compactMap { $0.color }
-    }
 }
 
 // MARK: - MODELS
 // MARK: - Sample Model
 class SampleModel: ObservableObject {
-    @Published var background: BackgroundModel
+    @Published var background: BackgroundModel = .init(colors: [], rows: [])
     @Published var selectedColor: ColorModel?
     
     init() {
         let colors  = ColorModel.randomColors
-        background = .init(colors: colors)
         selectedColor = colors.first
+        
+        $selectedColor.map { selectedColor in
+            BackgroundModel(colors: colors.map(\.swiftUIcolor), rows: colors.map {
+                .init(isSelected: $0 == selectedColor, color: $0)
+            })
+        }
+        .assign(to: &$background)
     }
 }
 
 // MARK: - Background Model
 extension SampleModel {
-    struct BackgroundModel: Codable {
-        public let colors: [ColorModel]
+    struct BackgroundModel {
+        public let colors: [Color]
+        public let rows: [BackgroundRowModel]
         
-        init(colors: [ColorModel] = []) {
+        init(colors: [Color], rows: [BackgroundRowModel]) {
             self.colors = colors
+            self.rows = rows
         }
         
         public var isColorType: Bool {
             return !colors.isEmpty
         }
+    }
+    
+    struct BackgroundRowModel {
+        let isSelected: Bool
+        let color: ColorModel
     }
 }
 
@@ -126,9 +133,8 @@ struct ColorModel: Identifiable, Codable, Equatable {
     
     static let orange: ColorModel = .init(id: "orange", name: "Orange", hexCode: "FFA500")
     
-    var color: Color {
-        let colour = Color(hex: hexCode)
-        return colour
+    var swiftUIcolor: Color {
+        return Color(hex: hexCode)
     }
     
     static func == (lhs: Self, rhs: Self) -> Bool {
