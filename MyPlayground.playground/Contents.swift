@@ -37,7 +37,7 @@ struct TopView: View {
 
 struct ColorConfigurationRowView: View {
     let colors: [ColorModel]
-    @Binding public var selectedColor: ColorModel
+    @Binding public var selectedColor: ColorModel?
     
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
@@ -94,13 +94,12 @@ struct BackgroundView: View {
 // MARK: - Sample Model
 class SampleModel: ObservableObject {
     @Published var background: BackgroundModel
-    @Published var selectedColor: ColorModel
+    @Published var selectedColor: ColorModel?
     
     init() {
         let colors  = ColorModel.randomColors
-        
         background = .init(colors: colors)
-        selectedColor = colors[0]
+        selectedColor = colors.first
     }
 }
 
