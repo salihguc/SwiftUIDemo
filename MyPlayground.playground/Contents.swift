@@ -96,13 +96,11 @@ class SampleModel: ObservableObject {
     @Published var background: BackgroundModel
     @Published var selectedColor: ColorModel
     
-    let colors: [ColorModel]
-    
     init() {
-        colors  = ColorModel.randomColors
+        let colors  = ColorModel.randomColors
+        
+        background = .init(colors: colors)
         selectedColor = colors[0]
-        background = .init(id: "", colors: colors)
-  
     }
 }
 
@@ -111,8 +109,7 @@ extension SampleModel {
     struct BackgroundModel: Codable {
         public let colors: [ColorModel]
         
-        init(id: String,
-             colors: [ColorModel] = []) {
+        init(colors: [ColorModel] = []) {
             self.colors = colors
         }
         
