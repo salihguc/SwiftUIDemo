@@ -4,15 +4,18 @@ import SwiftUI
 import PlaygroundSupport
 
 struct ContentView: View {
-    @State private var model: SampleModel = .init(id: "sm", background: .init(id: "bg", colors: [.orange]))
-
+    @ObservedObject private var model: SampleModel = .init()
+    
     var body: some View {
         VStack(alignment: .leading, spacing: 8, content: {
-            TopView(model: $model)
+            TopView(background: model.background)
             Divider()
             Form(content: {
                 Section("Background Color") {
-                    ColorConfigurationRowView(selectedColor: model.background.firstColor)
+                    ColorConfigurationRowView(
+                        colors: model.background.colors,
+                        selectedColor: $model.selectedColor
+                    )
                 }
             })
             Spacer()
@@ -22,27 +25,25 @@ struct ContentView: View {
 
 // MARK: - VIEWS
 struct TopView: View {
-    @Binding public var model: SampleModel
+    let background: SampleModel.BackgroundModel
     
     var body: some View {
         ZStack(alignment: .center, content: {
-            BackgroundView(model: model.background)
+            BackgroundView(background: background)
             Text("Top View")
         })
     }
 }
 
 struct ColorConfigurationRowView: View {
-    private let colors: [ColorModel] = ColorModel.randomColors
-    
-    @Binding public var selectedColor: ColorModel
+    let colors: [ColorModel]
+    @Binding public var selectedColor: ColorModel?
     
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             LazyHGrid(rows: [GridItem(.fixed(40))],
                       alignment: .center,
                       spacing: 10) {
-                
                 ForEach(colors) { color in
                     ColorView(model: color,
                               isSelected: color == selectedColor)
@@ -72,10 +73,10 @@ struct ColorView: View {
 }
 
 struct BackgroundView: View {
-    @Binding public var model: SampleModel.BackgroundModel
+    let background: SampleModel.BackgroundModel
     
     var body: some View {
-        if model.isColorType {
+        if background.isColorType {
             LinearGradient(colors: colors,
                            startPoint: .leading,
                            endPoint: .trailing)
@@ -85,56 +86,34 @@ struct BackgroundView: View {
     }
     
     private var colors: [Color] {
-        model.colors?.compactMap { $0.color } ?? []
+        background.colors.compactMap { $0.color }
     }
 }
 
 // MARK: - MODELS
 // MARK: - Sample Model
-struct SampleModel: Identifiable, Codable {
-    public var id: String
-    public var background: BackgroundModel
+class SampleModel: ObservableObject {
+    @Published var background: BackgroundModel
+    @Published var selectedColor: ColorModel?
+    
+    init() {
+        let colors  = ColorModel.randomColors
+        background = .init(colors: colors)
+        selectedColor = colors.first
+    }
 }
 
 // MARK: - Background Model
 extension SampleModel {
-    class BackgroundModel: Identifiable, Codable {
-        public var id: String
-        public var colors: [ColorModel]?
+    struct BackgroundModel: Codable {
+        public let colors: [ColorModel]
         
-        init(id: String,
-             colors: [ColorModel]? = nil) {
-            
-            self.id = id
+        init(colors: [ColorModel] = []) {
             self.colors = colors
         }
         
         public var isColorType: Bool {
-            guard let colors else { return false }
             return !colors.isEmpty
-        }
-        
-        var backgroundColors: Binding<[ColorModel]> {
-            Binding {
-                return self.colors ?? []
-            } set: { newValue in
-                self.colors = newValue
-            }
-        }
-        
-        var firstColor: Binding<ColorModel> {
-            Binding(
-                get: {
-                    return self.colors?.first ?? ColorModel.randomColors.first!
-                },
-                set: { newValue in
-                    if self.colors != nil {
-                        self.colors?[0] = newValue
-                    } else {
-                        self.colors = [newValue]
-                    }
-                }
-            )
         }
     }
 }
@@ -228,3 +207,5 @@ extension Color {
                      blue: .random(in: 0...1))
     }
 }
+
+PlaygroundPage.current.setLiveView(ContentView().frame(width: 300, height: 500))
